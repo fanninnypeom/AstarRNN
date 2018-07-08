@@ -1,0 +1,260 @@
+import gym
+import tensorflow as tf
+import numpy as np
+import random
+import pickle
+from collections import deque
+
+# Hyper Parameters for DAN
+PRE_TRAIN = True
+GAMMA = 0.9 # discount factor for target Q
+INITIAL_EPSILON = 0.5 # starting value of epsilon
+FINAL_EPSILON = 0.01 # final value of epsilon
+REPLAY_SIZE = 10000 # experience replay buffer size
+BATCH_SIZE = 32 # size of minibatch
+PRE_EPISODE = 30
+
+class DAN():
+  # DQN Agent
+  def __init__(self, env):
+    # init experience replay
+    self.batches = []
+    self.replay_buffer = deque()
+    # init some parameters
+    self.time_step = 0
+    self.epsilon = INITIAL_EPSILON
+    self.state_dim = env.observation_space.shape[0]
+    self.action_dim = env.action_space.n
+
+    self.create_heuristics_network()
+    self.create_training_method()
+
+    # Init session
+    self.session = tf.InteractiveSession()
+    self.session.run(tf.initialize_all_variables())
+    self.saver = tf.train.Saver(max_to_keep=10)
+
+def build_lstm():
+    lstm = tf.nn.rnn_cell.BasicLSTMCell(lstm_size)
+
+  # 添加dropout
+    drop = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=keep_prob)
+
+  # 堆叠
+    cell = tf.nn.rnn_cell.MultiRNNCell([drop for _ in range(num_layers)])
+    initial_state = cell.zero_state(batch_size, tf.float32)
+
+    return cell, initial_state
+
+  def create_policy_network(self):  
+    self.p_known_ = tf.placeholder(tf.int64, shape=(batch_size, input_steps), name='p_known')
+    p_known_embedding = tf.contrib.layers.embed_sequence(self.p_known_, block_num, lstm_size, scope = "p_known_embedding")
+    self.p_destination_ = tf.placeholder(tf.int64, shape=(batch_size), name='p_destination')
+    p_destination_embedding = tf.contrib.layers.embed_sequence(self.p_destination_, block_num, lstm_size, scope = "p_destination_embedding", reuse = True)
+    cell, initial_state = build_lstm()
+    outputs, final_state = tf.nn.dynamic_rnn(cell, p_known_embedding, initial_state = initial_state, dtype=tf.float32, time_major=True)
+
+    with tf.variable_scope('policy_output'):
+      w_p = tf.Variable(tf.truncated_normal([lstm_size, block_num], stddev=0.1))
+      b_p = tf.Variable(tf.zeros(block_num))
+
+    self.policy = tf.matmul(final_state, w_p) + b_p
+
+  def create_heuristics_network(self):
+    self.known_ = tf.placeholder(tf.int64, shape=(batch_size, input_steps), name='known', reuse = True)
+    known_embedding = tf.contrib.layers.embed_sequence(known_, block_num, lstm_size, scope = "known_embedding", reuse = True)
+    self.waiting_ = tf.placeholder(tf.int64, shape=(batch_size), name='waiting')
+    waiting_embedding = tf.contrib.layers.embed_sequence(waiting_, block_num, lstm_size, scope = "waiting_embedding", reuse = True)
+    self.destination_ = tf.placeholder(tf.int64, shape=(batch_size), name='destination')
+    destination_embedding = tf.contrib.layers.embed_sequence(self.destination_, block_num, lstm_size, scope = "destination_embedding", reuse = True)
+    # network weights
+
+    fw_cell, fw_initial_state = build_lstm()
+    bw_cell, bw_initial_state = build_lstm()
+
+    outputs, state = tf.nn.bidirectional_dynamic_rnn(fw_cell, bw_cell, known_embedding, initial_state_fw=fw_initial_state, initial_state_bw=bw_initial_state, dtype=tf.float32, time_major=True)
+
+    initial_state = tf.add(state[0], state[1])
+    unstack_state = tf.unstack(initial_state, axis=0)
+    tuple_state = tuple([tf.contrib.rnn.LSTMStateTuple(unstack_state[idx][0], unstack_state[idx][1]) for idx in range(num_layers)])
+
+    hidden_states = tf.add(outputs[0], outputs[1])
+
+    distant_embedding = waiting_embedding + destination_embedding
+    W1 = self.weight_variable([self.state_dim,20])
+    b1 = self.bias_variable([20])
+
+    with tf.variable_scope('layer1'):
+      local_w1 = tf.Variable(tf.truncated_normal([lstm_size, 2*lstm_size], stddev=0.1))
+      local_b1 = tf.Variable(tf.zeros(2*lstm_size))
+
+    local_1_layer = tf.nn.relu(tf.matmul(local_embedding, local_w1) + local_b1)
+
+    with tf.variable_scope('layer2'):
+      local_w2 = tf.Variable(tf.truncated_normal([2*lstm_size, lstm_size], stddev=0.1))
+      local_b2 = tf.Variable(tf.zeros(lstm_size))
+
+    local_2_layer = tf.nn.relu(tf.matmul(local_1_layer, local_w2) + local_b2)
+  
+    output_state = tf.reduce_mean(hidden_states, 0) + local_2_layer
+
+    with tf.variable_scope('output'):
+      w_h = tf.Variable(tf.truncated_normal([2*lstm_size, lstm_size], stddev=0.1))
+      b_h = tf.Variable(tf.zeros(lstm_size))
+      w_t = tf.Variable(tf.truncated_normal([2*lstm_size, lstm_size], stddev=0.1))
+      b_t = tf.Variable(tf.zeros(lstm_size))
+      
+
+    self.heuristics = tf.nn.relu(tf.matmul(output_state, w_h) + b_h)
+
+    self.time = tf.nn.relu(tf.matmul(output_state, w_t) + b_t)
+
+  def create_train_method(self):
+    self.action_input = tf.placeholder("int",[batch_size]) 
+    self.heuristics_input = tf.placeholder("float",[batch_size])
+    self.time_input = tf.placeholder("float",[batch_size])
+    self.heuristics_cost = tf.reduce_mean(tf.square(self.heuristics_input - self.heuristics))
+ 
+    action_one_hot = tf.one_hot(self.action_input, block_num)
+  #  y_reshaped = tf.reshape(y_one_hot, logits.get_shape())
+
+    # Softmax cross entropy loss
+    self.policy_loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.policy , labels=action_one_hot)
+
+    self.policy_optimizer = tf.train.AdamOptimizer(0.0001).minimize(self.policy_loss) 
+    self.optimizer = tf.train.AdamOptimizer(0.0001).minimize(self.heuristics_cost)
+
+  def perceive(self,state,action,reward,next_state,done):
+    one_hot_action = np.zeros(self.action_dim)
+    one_hot_action[action] = 1
+    self.replay_buffer.append((state,one_hot_action,reward,next_state,done))
+    if len(self.replay_buffer) > REPLAY_SIZE:
+      self.replay_buffer.popleft()
+
+    if len(self.replay_buffer) > BATCH_SIZE:
+      self.train_heuristics_network()
+
+  def train_heuristics_network(self):
+    self.time_step += 1
+    # Step 1: obtain random minibatch from replay memory
+    minibatch = random.sample(self.replay_buffer,BATCH_SIZE)
+    state_batch = [data[0] for data in minibatch]
+    action_batch = [data[1] for data in minibatch]
+    reward_batch = [data[2] for data in minibatch]
+    next_state_batch = [data[3] for data in minibatch]
+
+    # Step 2: calculate y
+    y_batch = []
+    Q_value_batch = self.Q_value.eval(feed_dict={self.state_input:next_state_batch})
+    for i in range(0,BATCH_SIZE):
+      done = minibatch[i][4]
+      if done:
+        y_batch.append(reward_batch[i])
+      else:
+        y_batch.append(reward_batch[i] + GAMMA * np.max(Q_value_batch[i]))
+
+    self.optimizer.run(feed_dict={
+      self.y_input:y_batch,
+      self.action_input:action_batch,
+      self.state_input:state_batch
+      })
+
+  def egreedy_action(self,state):
+    Q_value = self.Q_value.eval(feed_dict = {
+      self.state_input:[state]
+      })[0]
+    if random.random() <= self.epsilon:
+      return random.randint(0,self.action_dim - 1)
+    else:
+      return np.argmax(Q_value)
+
+    self.epsilon -= (INITIAL_EPSILON - FINAL_EPSILON)/10000
+
+  def action(self,state):
+    return np.argmax(self.Q_value.eval(feed_dict = {
+      self.state_input:[state]
+      })[0])
+
+  def process_data(self):
+    File = open("/data/wuning/foursquare/NYCData", "rb")
+    data = pickle.load(File)
+    locations = set()
+    for item in data:
+      for tra in item:
+        for rec in tra:
+          locations.add(rec[0])
+    vocabulary = {}
+    count = 0
+    for key in locations:
+      vocabulary[key] = count
+      count += 1
+    batches = []
+    for batch in data:
+      batches.append([vocabulary[rec] for rec in tra for tra in np.array(batch)[:, :, 0]])   
+      batches.append()  
+    self.batches = batches
+# ---------------------------------------------------------
+EPISODE = 100 # Episode limitation
+TRAIN_BATCHES = 300 # Step limitation in an episode
+TEST = 10 # The number of experiment test every 100 episode
+
+def main():
+  # initialize OpenAI Gym env and dqn agent
+  # generate samples
+
+  AstarRNN = DAN()
+
+  AstarRNN.process_data()
+
+  AstarRNN.create_policy_network()
+
+  AstarRNN.create_heuristics_network()
+
+  AstarRNN.create_train_method()
+
+  pre_batches = []
+  for batch in self.batches:
+    for i in range(1, len(batch[0]) - 2):
+      pre_batches.append(batch[:][0, i], batch[:][i], batch[:][-1])     
+
+  if(PRE_TRAIN):
+    for episode in range(PRE_EPISODE):
+      for batch in pre_batches:
+        self.policy_optimizer.run(feed_dict={
+          self.p_known_:batch[1],
+          self.p_destination_:batch[2],
+          self.policy_action_input:batch[0]
+        })
+      self.saver.save(self.session, "/data/wuning/kalmanrnn/lstm/beijing_spatialtemporal_attention/pretrain_polictu_neuralnetwork_epoch{}.ckpt".format(counter, lstm_size, epoch))
+
+  for step in range(STEP):
+    action = agent.egreedy_action(state) # e-greedy action for train
+    next_state,reward,done,_ = env.step(action)
+    # Define reward for agent
+    reward_agent = -1 if done else 0.1
+    agent.perceive(state,action,reward,next_state,done)
+    state = next_state
+    if done:
+      break
+
+  # Train
+  for episode in xrange(EPISODE):
+    # Test every 100 episodes
+    if episode % 100 == 0:
+      total_reward = 0
+      for i in xrange(TEST):
+        state = env.reset()
+        for j in xrange(STEP):
+          env.render()
+          action = agent.action(state) # direct action for test
+          state,reward,done,_ = env.step(action)
+          total_reward += reward
+          if done:
+            break
+      ave_reward = total_reward/TEST
+      print 'episode: ',episode,'Evaluation Average Reward:',ave_reward
+      if ave_reward >= 200:
+        break
+
+if __name__ == '__main__':
+  main()
