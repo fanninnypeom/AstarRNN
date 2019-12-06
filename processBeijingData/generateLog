@@ -1,0 +1,50 @@
+nohup: ignoring input
+shape: (2623, 120, 101, 2)
+/home/wuning/anaconda3/lib/python3.6/site-packages/h5py/__init__.py:34: FutureWarning: Conversion of the second argument of issubdtype from `float` to `np.floating` is deprecated. In future, it will be treated as `np.float64 == np.dtype(float).type`.
+  from ._conv import register_converters as _register_converters
+-------------- Tensor("policy_network/location_embedding/embedding_lookup:0", shape=(?, ?, 512), dtype=float32)
+Tensor("policy_network/location_embedding_1/embedding_lookup:0", dtype=float32) Tensor("policy_network/rnn/while/Exit_3:0", shape=(?, 512), dtype=float32)
+Tensor("policy_network/add:0", shape=(?, 26261), dtype=float32)
+outputs: Tensor("policy_network/rnn/TensorArrayStack/TensorArrayGatherV3:0", shape=(?, ?, 512), dtype=float32)
+2018-09-25 23:36:41.389009: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+2018-09-25 23:36:41.389032: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+2018-09-25 23:36:41.389036: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+2018-09-25 23:36:41.389039: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+2018-09-25 23:36:41.389042: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+2018-09-25 23:36:41.641281: I tensorflow/core/common_runtime/gpu/gpu_device.cc:955] Found device 0 with properties: 
+name: GeForce GTX 1080 Ti
+major: 6 minor: 1 memoryClockRate (GHz) 1.645
+pciBusID 0000:4d:00.0
+Total memory: 10.91GiB
+Free memory: 10.75GiB
+2018-09-25 23:36:41.641310: I tensorflow/core/common_runtime/gpu/gpu_device.cc:976] DMA: 0 
+2018-09-25 23:36:41.641315: I tensorflow/core/common_runtime/gpu/gpu_device.cc:986] 0:   Y 
+2018-09-25 23:36:41.641321: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1045] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 1080 Ti, pci bus id: 0000:4d:00.0)
+14000
+batches generated:600...
+28000
+batches generated:700...
+42000
+batches generated:800...
+56000
+batches generated:900...
+70000
+batches generated:1000...
+14000
+batches generated:1100...
+28000
+batches generated:1200...
+42000
+batches generated:1300...
+56000
+batches generated:1400...
+70000
+batches generated:1500...
+14000
+batches generated:1600...
+28000
+batches generated:1700...
+42000
+batches generated:1800...
+56000
+batches generated:1900...

@@ -7,7 +7,12 @@ from collections import deque
 import os
 import math
 
-os.environ['CUDA_VISIBLE_DEVICES']='3'
+train_dir = "/data/wuning/LSBN Data/GowallaTrainData"       #/data/wuning/mobile trajectory/Q_learning_trainSet
+test_dir = "/data/wuning/LSBN Data/GowallaTestData"
+adj_dir = "/data/wuning/LSBN Data/adjMat"
+loc2latlon_dir = "/data/wuning/LSBN Data/loc2latlon_new"
+
+os.environ['CUDA_VISIBLE_DEVICES']='0'
 # Hyper Parameters for DAN
 PRE_TRAIN = False
 TEST = True
@@ -17,9 +22,9 @@ INITIAL_EPSILON = 0.5 # starting value of epsilon
 FINAL_EPSILON = 0.01 # final value of epsilon
 batch_size = None # size of minibatch
 input_steps = None
-block_num = 26261
-lstm_size = 512
-num_layers = 2
+block_num = 17187
+lstm_size = 1024
+num_layers = 1
 TRAIN_BATCH_SIZE = 100 #训练输入的batch 大小
 INFERENCE_BATCH_SIZE = 1 #推断的时候输入的batch 大小
 PRE_EPISODE = 600
@@ -27,20 +32,21 @@ NEG_SAMPLES = 9
 NEXT_ACTION_NUM = 3
 
 class DAN():
-  # DQN Agent
   def __init__(self):
     # init experience replay
     self.train_batches = []
     self.test_batches = []
+    self.adj = []
     # init some parameters
     self.token2cor = {}
     self.sigma = 0.001   #高斯核的系数
 
     self.gradients= None
 
-    self.load_beijing_data()
+    self.load_data()
     self.create_policy_network()
-    self.create_heuristics_network()
+#    self.create_heuristics_network()
+#    self.create_neigh_constrained_network()
     self.all_saver = tf.train.Saver(max_to_keep=10)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -61,10 +67,10 @@ class DAN():
 
   def build_lstm(self, batch_size):
     lstm = tf.nn.rnn_cell.BasicLSTMCell(lstm_size)
-
+  #BasicLSTMCell    GRUCell
   # 添加dropout
 
-    drop = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=1.0)
+    drop = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=self.keep_prob)
 
   # 堆叠
     cell = tf.nn.rnn_cell.MultiRNNCell([drop for _ in range(num_layers)])
@@ -74,6 +80,7 @@ class DAN():
 
   def create_policy_network(self):  
     with tf.variable_scope("policy_network"):
+      self.keep_prob = tf.placeholder(tf.float32)
       self.p_output_ = tf.placeholder(tf.int64, [batch_size, input_steps], name = "p_output") 
       self.p_known_ = tf.placeholder(tf.int64, shape=(batch_size, input_steps), name='p_known')
       p_known_embedding = tf.contrib.layers.embed_sequence(self.p_known_, block_num, lstm_size, scope = "location_embedding")
@@ -89,6 +96,7 @@ class DAN():
 
       print(self.p_destination_embedding, self.final_state[0][1])
       self.policy = tf.matmul(tf.reshape(tf.add(tf.expand_dims(self.p_destination_embedding, 0), self.outputs), [-1, lstm_size]), w_p) + b_p
+#      self.policy = tf.matmul(tf.reshape(self.outputs, [-1, lstm_size]), w_p) + b_p
       print(self.policy)
       self.policy = tf.transpose(tf.reshape(self.policy, [tf.shape(self.p_known_)[1], tf.shape(self.p_known_)[0], block_num]), [1, 0, 2])
       self.action = tf.argmax(self.policy, axis=2)
@@ -96,7 +104,54 @@ class DAN():
       action_one_hot = tf.one_hot(self.p_output_, block_num)
       self.policy_loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.policy , labels=action_one_hot)
       self.policy_loss = tf.reduce_mean(self.policy_loss)
-      self.policy_optimizer = tf.train.AdamOptimizer(0.0001).minimize(self.policy_loss) 
+      self.policy_optimizer = tf.train.AdamOptimizer(0.001).minimize(self.policy_loss) 
+
+
+  def create_neigh_constrained_network(self):
+    with tf.variable_scope("policy_network"):
+      self.keep_prob = tf.placeholder(tf.float32)
+      self.half_batch = tf.placeholder(tf.int32)
+      self.p_known_ = tf.placeholder(tf.int64, shape=(batch_size, input_steps), name='p_known')
+      p_known_embedding = tf.contrib.layers.embed_sequence(self.p_known_, block_num, lstm_size, scope = "location_embedding")
+      print("--------------", p_known_embedding)
+      self.p_destination_ = tf.placeholder(tf.int64, shape=(batch_size), name='p_destination')
+      self.p_destination_embedding = tf.contrib.layers.embed_sequence(self.p_destination_, block_num, lstm_size, scope = "location_embedding", reuse = True)
+      cell, initial_state = self.build_lstm(tf.shape(self.p_known_)[0])
+      self.outputs, self.final_state = tf.nn.dynamic_rnn(cell, tf.transpose(p_known_embedding, [1, 0, 2]), initial_state = initial_state, dtype=tf.float32, time_major=True)
+
+      with tf.variable_scope('policy_output'):
+        w_p = tf.Variable(tf.truncated_normal([lstm_size, 1], stddev=0.1))
+        b_p = tf.Variable(tf.zeros(1))
+
+#      with tf.variable_scope('heuristics_output'):
+#        w_h = tf.Variable(tf.truncated_normal([lstm_size, 1], stddev=0.1))
+#        b_h = tf.Variable(tf.zeros(1))
+
+      self.policy_heuristics = tf.matmul(tf.add(self.p_destination_embedding, self.outputs[-1, :, :]), w_p) + b_p
+
+#      self.heuristics = tf.matmul(tf.add(self.p_destination_embedding, self.outputs[-1, :, :]), w_h) + b_h
+
+#      self.time = tf.nn.relu(tf.matmul(output_state, w_t) + b_t)
+
+#      self.time_input = tf.placeholder(tf.float32, [batch_size], name = "time_input")
+      print(self.policy_heuristics)
+      margin = 1.0 - tf.slice(self.policy_heuristics, [0, 0], [self.half_batch, 1]) + tf.slice(self.policy_heuristics, [self.half_batch, 0], [self.half_batch, 1])
+
+      condition = tf.less(margin, 0.)
+
+########  supervised learning
+#      self.heuristics_input = tf.placeholder(tf.float32, shape=(batch_size), name='heuristics_input')
+#      self.f_heuristics_cost = tf.reduce_mean(tf.square(self.heuristics_input - self.heuristics))
+########
+
+########### margin loss
+      self.heuristics_cost = tf.reduce_mean(tf.where(condition, tf.zeros_like(margin), margin))
+###########
+
+      self.policy_heuristics_optimizer = tf.train.AdamOptimizer(0.0001).minimize(self.heuristics_cost)
+#      self.heuristics_optimizer = tf.train.AdamOptimizer(0.0001).minimize(self.f_heuristics_cost)
+
+
   def create_heuristics_network(self):
     with tf.variable_scope("value_network"):  
       with tf.variable_scope('value_output'):
@@ -126,7 +181,7 @@ class DAN():
       self.value_variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                       "value_network")
 
-      self.optimizer = tf.train.AdamOptimizer(0.0001).minimize(self.heuristics_cost, var_list=self.value_variables)
+      self.optimizer = tf.train.AdamOptimizer(0.00001).minimize(self.heuristics_cost, var_list=self.value_variables)
 
 
   def old_create_heuristics_network(self):
@@ -281,10 +336,14 @@ class DAN():
     pickle.dump(self.test_batches, open("/data/wuning/mobile trajectory/Q_learning_testSet", "wb"), -1)
     print("process data finish")
   def load_data(self):
-    File = open("/data/wuning/mobile trajectory/Q_learning_trainSet", "rb")   #trainSet
+    File = open(train_dir, "rb")   #trainSet
     self.train_batches = pickle.load(File)
-    File = open("/data/wuning/mobile trajectory/Q_learning_testSet", "rb")    #testSet
+    File = open(test_dir, "rb")    #testSet
     self.test_batches = pickle.load(File)
+    File = open(adj_dir, "rb")
+    self.adj = pickle.load(File)
+    File = open(loc2latlon_dir, "rb")
+    self.loc2latlon = pickle.load(File)
     File = open("/data/wuning/mobile trajectory/Q_learning_token2cor", "rb")
     self.token2cor = pickle.load(File)
 
@@ -296,33 +355,39 @@ class DAN():
     self.test_batches = pickle.load(File)
 
 
-  def pre_train(self, PRE_EPISODE):
+  def policy_train(self, PRE_EPISODE):
 #    self.all_saver.restore(self.session, "/data/wuning/AstarRNN/pretrain_test_policity_neural_network_epoch0.ckpt")
-    pre_batches = []
+
     pre_test_batches = []
-    for batch in self.train_batches:
-      if len(batch) > 0:
-        pre_batches.append([np.array(batch)[:,:-1], np.array(batch)[:,1:], np.array(batch)[:,-1]])    
+    pre_batches = []
+    for train_batch in self.train_batches:
+      if len(train_batch) > 0:
+        pre_batches.append([np.array(train_batch)[:,:-1], np.array(train_batch)[:,1:], np.array(train_batch)[:,-1]]) 
+
     for test_batch in self.test_batches:
       if len(test_batch) > 0:
         pre_test_batches.append([np.array(test_batch)[:,:-1], np.array(test_batch)[:,1:], np.array(test_batch)[:,-1]]) 
-#    pre_batches = np.array(pre_batches)
-    print(len(pre_batches), len(pre_test_batches))
+    print("len pre batch:", len(pre_batches), len(pre_test_batches))
+    right_num = 0
+    sum_num = 0
     for episode in range(PRE_EPISODE):
       counter = 0
       for batch in pre_batches:
-#        print(np.array(batch[1]).shape)
-#        print(np.array(batch[2]).shape)
-#        print(np.array(batch[0]).shape)
+#        print(np.array(batch)[0, 0])
+#        print("-----")
+#        print(np.array(batch)[:, 1])
+#        print(np.array(np.array(batch)[:, 0].tolist()).shape, np.array(np.array(batch)[:, 1].tolist()).shape)
         self.policy_optimizer.run(feed_dict={
-          self.p_known_:batch[0],
-          self.p_destination_:batch[2],
-          self.p_output_:batch[1]
+          self.p_known_:np.array(batch[0]),
+          self.p_output_:np.array(batch[1]),
+          self.p_destination_:np.array(batch[2]),
+          self.keep_prob:0.2
         })
         eval_policy_loss = self.policy_loss.eval(feed_dict={
-          self.p_known_:batch[0],
-          self.p_destination_:batch[2],
-          self.p_output_:batch[1]
+          self.p_known_:np.array(batch[0]),
+          self.p_output_:np.array(batch[1]),
+          self.p_destination_:np.array(batch[2]),
+          self.keep_prob:0.2
         })
         
         if counter % 1000 == 0:
@@ -332,14 +397,20 @@ class DAN():
         counter += 1
       average_loss = 0
       for test_batch in pre_test_batches:
-        test_policy_loss = self.policy_loss.eval(feed_dict={
+        pred_policy = self.action.eval(feed_dict={
           self.p_known_:test_batch[0],
           self.p_destination_:test_batch[2],
-          self.p_output_:test_batch[1]
+          self.keep_prob:1.0
         })
-        average_loss += test_policy_loss
-      print("test_loss:", average_loss / len(pre_test_batches))
-      self.all_saver.save(self.session, "/data/wuning/AstarRNN/beijing_Q_learning_pre_train_neural_network_epoch{}.ckpt".format(episode))
+        for tra, pred_tra in zip(test_batch[1], pred_policy):
+          for item_1, item_2 in zip(tra, pred_tra):
+            if item_1 == item_2:
+              right_num += 1
+            sum_num += 1
+#        test_policy_loss = right_num / float(sum_num)
+#        average_loss += test_policy_loss
+      print("test_loss:", right_num / float(sum_num))
+      self.all_saver.save(self.session, "/data/wuning/AstarRNN/gowalla_Q_learning_pre_train_neural_network_epoch{}.ckpt".format(episode))
 
   def reconstruct_path(self, cameFrom, current):
     total_path = [current]
@@ -376,13 +447,14 @@ class DAN():
         path = [start]
         for i in range(len(unknown)):
 #          print("path:", path)
-          policy_value = self.policy.eval(
+          policy = self.action.eval(
               feed_dict={
                 self.p_known_:np.array(path)[np.newaxis, :],
-                self.p_destination_:[end]
-            })
-          policy = np.argmax(policy_value, axis=2)[:,-1]
-          path.append(policy[0])
+                self.p_destination_:[end],
+                self.keep_prob:1.0
+            })[0][-1]
+#          policy = np.argmax(policy_value, axis=2)[:,-1]
+          path.append(policy)
         path.append(end)
         result.append(path)
       for infer, real in zip(result, batch):
@@ -392,10 +464,10 @@ class DAN():
           if item in real[1:-1]:
             counters += 1
         all_len += len(real) - 2
-      print(counters, all_len, float(counters)/all_len)
+      print(float(counters)/all_len)
 
-  def beamSearch(self):
-    beam_width = 3
+  def beamSearch(self):#batch size 为50
+    beam_width = 10
     all_len = 0
     counters = 0
     for batch in self.test_batches:
@@ -403,30 +475,32 @@ class DAN():
       known_score = []
       for i in range(0, len(batch[0]) - 2):
         if i == 0:
-          policy_value = self.policy.eval(
+          policy_value = self.policy_prob.eval(
               feed_dict={
                 self.p_known_:known_seq[0],
                 self.p_destination_:np.array(batch)[: , -1],
+                self.keep_prob:1.0
           })
           policy = np.argsort(-policy_value, axis=2)[:,-1,:beam_width]
-          temp = known_seq
+          temp = known_seq    
           known_seq = []
           for j in range(0, beam_width):
-            known_seq.append(np.concatenate((temp[0], policy[:, j][:, np.newaxis]), 1))
+            known_seq.append(np.concatenate((temp[0], policy[:, j][:, np.newaxis]), 1)) 
 #            print(policy[:, j].shape, np.array(policy_value)[:, -1, :].shape) 
-            known_score.append([np.array(policy_value)[:, -1, :][enum, item] for enum, item in enumerate(policy[:, j])])
+            known_score.append([np.array(policy_value)[:, -1, :][enum, item] for enum, item in enumerate(policy[:, j])])    
 #            known_score.append(np.choose(policy[:, j], np.array(policy_value)[:, -1, :].T))    
           continue
+#        all_policy = []
         policy_known_score = []
         for j in range(0, len(known_seq)):
           policy_value = self.policy_prob.eval(
               feed_dict={
                 self.p_known_:known_seq[j],
                 self.p_destination_:np.array(batch)[: , -1],
+                self.keep_prob:1.0
           })
-          immedia = (1 - i / len(batch[0]))*np.array(known_score[j])[:, np.newaxis] + np.array(policy_value)[:, -1, :]
-
-
+          immedia = np.array(known_score[j])[:, np.newaxis] + np.array(policy_value)[:, -1, :]
+#          print(immedia.shape)
           if j == 0:
 #            all_policy = np.array(policy_value)[:, -1, :]
             policy_known_score = immedia
@@ -436,8 +510,8 @@ class DAN():
 #          policy_value = np.array(policy_value)
         policy = np.argsort(-policy_known_score, axis=1)[:,:beam_width]
         raw_policy = policy
-        index = policy // 26261
-        policy = policy % 26261
+        index = policy // 17187
+        policy = policy % 17187
         last_known = []
 #        print(known_score[0])
         for k in range(0, beam_width):
@@ -450,11 +524,21 @@ class DAN():
           last_known.append(tem_batch)
         known_seq = last_known
       for infer, real in zip(known_seq[0], batch):
+#        print("infer:", len(infer))
+#        print("real:", len(real))
         for item in infer[1:]:
           if item in real[1:-1]:
             counters += 1
         all_len += len(real) - 2
-      print(counters, all_len, float(counters)/all_len)
+      print(float(counters)/all_len)
+  
+#          temp_known = []
+#          for i in range(0, beam_width):
+#            item_known = np.concatenate((known_seq[0], policy[:, i][:, np.newaxis]), axis = 1)
+#            temp_known.append(item_known)
+#          all_policy.extend(policy_value)
+
+               
 
   def AstarTest(self):    
     results = []
@@ -469,12 +553,10 @@ class DAN():
         openSet = [start]
         cameFrom = {}
         pathFounded = {start: [start]}
-        gScore = {}
         fScore = {}
-        gScore[start] = 0
         fScore[start] = 0
         waitingTra = 0
-        bestScore = -10000000
+        bestScore = -10000000000
         bestTra = []
         searchCount = 0
 ####Test Code   compare the score of different trajectory
@@ -507,38 +589,63 @@ class DAN():
         
           openSet.remove(current)
 #          print(len(openSet))
-#          closedSet.append(current)
-          if gScore[current] > bestScore:
-            bestScore = gScore[current]
-            bestTra = copy.deepcopy(pathFounded[current])
-            bestTra.append(end)        
-          if len(pathFounded[current]) > len(unknown) + 1 or len(pathFounded[current]) == len(unknown) + 1: 
+          closedSet.append(current)
+          if len(pathFounded[current]) == len(unknown) + 1: 
+            if fScore[current] > bestScore:
+              bestScore = fScore[current]
+              bestTra = pathFounded[current]
+              bestTra.append(end)
             continue
 
-          policy_value = self.policy.eval(
+          policy_value = self.policy_prob.eval(
               feed_dict={
                 self.p_known_:np.array(pathFounded[current])[np.newaxis, :],
-                self.p_destination_:[end]
+                self.p_destination_:[end],
+                self.keep_prob:1.0
           })
-          test_policy_loss = self.policy_loss.eval(feed_dict={
-            self.p_known_:np.array(batch)[:, :-1],
-            self.p_destination_:np.array(batch)[:, -1],
-            self.p_output_:np.array(batch)[:, 1:]
-          })
+#          test_policy_loss = self.policy_loss.eval(feed_dict={
+#            self.p_known_:np.array(batch)[:, :-1],
+#            self.p_destination_:np.array(batch)[:, -1],
+#            self.p_output_:np.array(batch)[:, 1:],
+#            self.keep_prob:1.0
+#          })
 
-          predict_output = self.policy.eval(
-              feed_dict={
-                self.p_known_:np.array(batch)[:, :-1],
-                self.p_destination_:np.array(batch)[:, -1],
-               })
+#          predict_output = self.policy.eval(
+#              feed_dict={
+#                self.p_known_:np.array(batch)[:, :-1],
+#                self.p_destination_:np.array(batch)[:, -1],
+#                self.keep_prob:1.0
+#               })
 
+
+#          print("predict:", np.argsort(predict_output, axis=2)[0,:,:NEXT_ACTION_NUM])
+#          print("predict:", np.argsort(predict_output, axis=2)[1,:,:NEXT_ACTION_NUM])
+#          print("predict:", np.argsort(predict_output, axis=2)[2,:,:NEXT_ACTION_NUM])
+#          print("predict:", np.argsort(predict_output, axis=2)[3,:,:NEXT_ACTION_NUM])
+#          print("predict:", np.argsort(predict_output, axis=2)[4,:,:NEXT_ACTION_NUM])
+#          print("predict:", np.argsort(predict_output, axis=2)[5,:,:NEXT_ACTION_NUM])
+
+#          print("p_output:", np.array(batch)[:, 1:])
           policy_value = np.array(policy_value)
 
 #          policy_value = np.exp(policy_value)/np.sum(np.exp(policy_value), axis=2)[:, :, np.newaxis]
 
           policy = np.argsort(-policy_value, axis=2)[:,-1,:2]
+#          print("policy_loss:", test_policy_loss)
+#          print("policy_value:", policy_value)
+#          print("start:", start)
+#          print("end:", end)
+#          print("path:", pathFounded[current])
+#          print("policy:", policy)
+#          print("unknown:", unknown)
+#         print("-------------")
           policy_list = policy[0].tolist()
- 
+
+#          if policy_list[0] in pathFounded[current]:
+#            policy_list = policy_list[1:]
+#          else:
+#            policy_list = policy_list[:-1]
+
 ############# new value network         
 #          p_known_batch = []
 #          for action in policy_list:
@@ -554,8 +661,7 @@ class DAN():
 #                }
 #            )
 #############              
-#          print("current:", current)
-#          print("policy:", policy_list)
+
           p_known_batch = []
           for action in policy_list:
             p_known_batch.append(pathFounded[current])          
@@ -573,50 +679,41 @@ class DAN():
             waiting = policy_list[waiting_count]  
             if (waiting in closedSet):
               continue
+            f_score = np.array(policy_value)[-1, -1, waiting] * fScore[current]
 
-            g_score = ((1 - len(pathFounded[current]) / 20)) * np.array(policy_value)[-1, -1, waiting] + gScore[current]
-#            f_score = np.array(policy_value)[-1, -1, waiting] + fScore[current]           
             temp = copy.deepcopy(pathFounded[current])
             temp.append(waiting) 
 
-            h_score =  self.heuristics.eval(
-                feed_dict={
+#            f_score =  self.heuristics.eval(
+#                feed_dict={
 #                  self.known_:np.array(pathFounded[current])[np.newaxis, :],
 #                  self.waiting_:[waiting],
 #                  self.destination_:[end]
 #---------------------------
-                   self.p_known_:np.array(temp)[np.newaxis, :],
-                   self.p_destination_:[end],
-                  }
-              )
-            print(h_score)
-#            h_score = random.uniform(0, 10)
-#            f_score = random.uniform(0, 10)
+#                   self.p_known_:np.array(temp)[np.newaxis, :],
+#                   self.p_destination_:[end],
+#                  }
+#              )
 
+#            f_score = random.uniform(0, 10)
 #            f_score = f_scores[waiting_count]
 #            f_score = f_score+ fScore[current]
-            if (waiting in gScore) and (g_score < gScore[waiting]):
+#            print("f_score:", f_score)
+            if (waiting in fScore) and (f_score < fScore[waiting]):
               continue
-            gScore[waiting] = g_score
-            fScore[waiting] = gScore[waiting] + h_score
+            fScore[waiting] = f_score
             if waiting not in openSet:
+#              print("insert!")
               openSet = self.insert(waiting, openSet, fScore)
             else:
               openSet = self.move(waiting, openSet,fScore)
             pathFounded[waiting] =  temp
-
-#            for item in openSet:
-#              print("loc:", item, "score:", fScore[item], "len:", len(pathFounded[item]), "path:", pathFounded[item])
-#            print("----------")
-
 #          print(searchCount)
-          if(searchCount >= 500):
+          if(searchCount >= 300):
             openSet = []
 #            print(temp)
         count += 1
-        print(count, searchCount, bestScore, bestTra)
-#        break
-
+        print(count)
 #        print("----------------------------------------------")
 #        print("count:", count)
 #        if(len(openSet) == 0 and len(bestTra) == 0):
@@ -625,8 +722,8 @@ class DAN():
 #        print("count:", count)
       results.append(result)
       for infer, real in zip(result, batch):     
-        print("infer:", infer)
-        print("real:", real)
+        print("infer:", infer)#[self.loc2latlon[item] for item in infer])
+        print("real:", real)#[self.loc2latlon[item] for item in real])
         for item in infer[1:-1]:
           if item in real[1:-1]:
             counters += 1 
@@ -743,59 +840,66 @@ class DAN():
       counter += 1
 
   def Q_learning_train_two_task(self):
-    pre_batches = []
-    for batch in self.train_batches:
-      if len(batch) > 0:
-        pre_batches.append([np.array(batch)[:,:-1], np.array(batch)[:,1:], np.array(batch)[:,-1]])
+    heuristics_batches = []
     counter = 0
+    heu_ave = []
     for episode in range(EPISODE):
-      for batch in pre_batches:
-        heuristics_batches = []
-        if len(batch) == 0:
-          continue
-        policy_feed_data = {
-          self.st_known_:batch[0],
-          self.st_destination_:batch[2],
-        }
-        eval_policy = self.policy.eval(feed_dict=policy_feed_data)
-        wait_next_actions = np.argsort(eval_policy, axis=2)[:, :, :NEXT_ACTION_NUM]
-        policy_value = np.sort(eval_policy, axis=2)[:, :, :NEXT_ACTION_NUM]
-        for k in range(wait_next_actions.shape[1], 0, -1):
-          item_heu_batch = []
-          item_known_batch = []
-          item_action_batch = []
-          item_des_batch = []
-          for l in range(0, NEXT_ACTION_NUM):
-            item_heu_batch.extend(policy_value[:, :, l].tolist())
-            item_known_batch.extend(batch[0][:, :k])
-            item_action_batch.extend(wait_next_actions[:, k - 1, l].tolist())
-            item_des_batch.extend(batch[2])
-          item_known_batch = np.concatenate((item_known_batch, np.array(item_action_batch)[:, np.newaxis]), axis=1) 
-          if not k == wait_next_actions.shape[1]:
-            item_heu_batch += 0.95 * self.heuristics.eval(
-            feed_dict={
-              self.st_known_:item_known_batch,
-              self.st_destination_:item_des_batch
-              }
+      for i in range(0, 12500, 500):
+        Q_learning_batches = pickle.load(open("/data/wuning/AstarBeijing/beijing_Q_learning_serpervised_heuristicsTrainSet"+str(i), "rb"))
+#mobile trajectory/Q_learning_serpervised_heuristicsTrainSet
+        for batch in Q_learning_batches:
+          if len(batch) == 0:
+            continue
+#######test
+#          feed_data = {
+#            self.p_known_:np.concatenate((np.array(batch[0]), np.array(batch[1])[:, np.newaxis]), 1),
+#            self.p_destination_:batch[2],
+#          }
+#          heuristics = self.heuristics.eval(feed_dict=feed_data)
+#          print("heuristics:", np.mean(heuristics))
+#          print(heuristics)
+#          print("y:", batch[3])
+#          continue
+#######
+
+          policy_feed_data = {
+            self.p_known_:np.concatenate((np.array(batch[0]), np.array(batch[1])[:, np.newaxis]), 1),
+            self.p_destination_:batch[2]
+          }
+          eval_next_policy = self.policy.eval(feed_dict=policy_feed_data)
+          wait_next_actions = np.argsort(eval_next_policy, axis=1)[:, -1, :NEXT_ACTION_NUM]
+          heuristics_batch = []  #下一个状态的Q值
+          for k in range(NEXT_ACTION_NUM):
+            heuristics_batch.append(self.heuristics.eval(
+              feed_dict={
+                self.p_known_:#np.concatenate((wait_next_actions[:, k][:, np.newaxis], wait_next_actions[:, k][:, np.newaxis], wait_next_actions[:, k][:, np.newaxis]), 1),
+                np.concatenate((np.array(batch[0]), np.array(batch[1])[:, np.newaxis], wait_next_actions[:, k][:, np.newaxis]), 1),
+                self.p_destination_:batch[2]
+                }
+              )
             )
-          heuristics_batches.append([item_known_batch, item_des_batch, item_heu_batch ])
-          print(np.array(item_heu_batch).shape)
-        feed_data = {}
-        for heu_batch in heuristics_batches:
+          heuristics_batch = np.array(heuristics_batch)
+          print("heuristics_batch:", heuristics_batch[2, :], len(heuristics_batch))
+          heu_ave.append(np.mean(heuristics_batch))
+          print("heuristics_ave:", np.mean(heu_ave))
+          
+          heuristics_batch = np.max(heuristics_batch, axis = 0)
+          batch[3] += GAMMA * heuristics_batch[:, 0]
+          heuristics_batches.append([np.array(batch[0]), np.array(batch[1]), np.array(batch[2]), batch[3]])
+        for batch in heuristics_batches:
           feed_data = {
-            self.s_known_:heu_batch[0],
-            self.s_destination_:heu_batch[1],
-            self.heuristics_input:heu_batch[2]
+            self.p_known_:np.concatenate((np.array(batch[0]), np.array(batch[1])[:, np.newaxis]), 1),
+            self.p_destination_:batch[2],
+            self.heuristics_input:batch[3]
           }
           self.optimizer.run(feed_dict=feed_data)
-          _ = self.policy_optimizer.run(feed_dict=policy_feed_data)
           heuristics_cost = self.heuristics_cost.eval(feed_dict=feed_data)
         heuristics = self.heuristics.eval(feed_dict=feed_data)
-#        print("heuristics:", heuristics)
+        print("heuristics:", heuristics)
+        self.all_saver.save(self.session, "/data/wuning/AstarRNN/train_heuristics_TD1_two_task_step{}_epoch{}.ckpt".format(i, episode))
         heuristics_batches = []
         print("loss:", heuristics_cost)
-      print("heuristics:", heuristics)
-      self.all_saver.save(self.session, "/data/wuning/AstarRNN/train_heuristics_TD1_two_task_epoch{}.ckpt".format( episode))
+    
 
   def Q_learning_train(self):
     heuristics_batches = []
@@ -1096,12 +1200,9 @@ def main():
   AstarRNN = DAN()  
 
   if(PRE_TRAIN):
-    AstarRNN.pre_train(PRE_EPISODE)
+    AstarRNN.policy_train(PRE_EPISODE)
   elif(RESTORE):
-    AstarRNN.all_saver.restore(tf.get_default_session(), "/data/wuning/AstarRNN/train_heuristics_TD1_two_task_epoch1.ckpt")
-#beijing_Q_learning_pre_train_neural_network_epoch252.ckpt
-
-#beijing_supervised_train_heuristics_neural_network_epoch99.ckpt
+    AstarRNN.all_saver.restore(tf.get_default_session(), "/data/wuning/AstarRNN/gowalla_Q_learning_pre_train_neural_network_epoch34.ckpt")
 
 #supervised_train_heuristics_neural_network_epoch1.ckpt")
 
@@ -1119,9 +1220,8 @@ def main():
 #    AstarRNN.policy_saver.restore(tf.get_default_session(), "/data/wuning/AstarRNN/pretrain_test_policity_neural_network_epoch37.ckpt")
 #"/data/wuning/AstarRNN/train_heuristics_reward_neural_network_epoch30.ckpt") 
   if(TEST):
-    accuracy = AstarRNN.AstarTest()# greedy AstarTest()
-#    AstarRNN.greedyTest()
 #    AstarRNN.beamSearch()
+    accuracy = AstarRNN.AstarTest()# greedy AstarTest()
     print('average accuracy:',accuracy)
   else:
 #    AstarRNN.process_data()
@@ -1129,8 +1229,8 @@ def main():
 #     AstarRNN.generate_heuristics_samples()
 #    AstarRNN.supervised_train()
 #    AstarRNN.generate_supervised_samples()
-    AstarRNN.Q_learning_train_two_task()  
+#    AstarRNN.Q_learning_train_two_task()  
 #    AstarRNN.margin_loss_two_task_train()
-#    AstarRNN.pre_train(PRE_EPISODE) 
+    AstarRNN.policy_train(PRE_EPISODE) 
 if __name__ == '__main__':
   main()
