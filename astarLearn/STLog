@@ -1,0 +1,399 @@
+nohup: ignoring input
+/home/wuning/anaconda3/lib/python3.6/site-packages/h5py/__init__.py:34: FutureWarning: Conversion of the second argument of issubdtype from `float` to `np.floating` is deprecated. In future, it will be treated as `np.float64 == np.dtype(float).type`.
+  from ._conv import register_converters as _register_converters
+-------------- Tensor("st_network/location_embedding/embedding_lookup:0", shape=(?, ?, 384), dtype=float32)
+-------------- Tensor("st_network/location_embedding_2/embedding_lookup:0", shape=(?, 1, 384), dtype=float32)
+his_tra_emb: Tensor("st_network/fully_connected/Relu:0", shape=(?, 10, 20, 384), dtype=float32)
+GRU state: Tensor("st_network/MultiRNNCellZeroState/MultiRNNCellZeroState/zeros:0", shape=(?, 768), dtype=float32)
+GRU state: Tensor("st_network/while/st_network/MultiRNNCellZeroState/MultiRNNCellZeroState/zeros:0", shape=(?, 768), dtype=float32)
+Tensor("st_network/fully_connected/Relu:0", shape=(?, 10, 20, 384), dtype=float32) Tensor("st_network/location_embedding_2/embedding_lookup:0", shape=(?, 1, 384), dtype=float32) Tensor("st_network/while/st_network/Squeeze:0", shape=(?, 384), dtype=float32)
+Tensor("st_network/location_embedding_2/embedding_lookup:0", shape=(?, 1, 384), dtype=float32) Tensor("st_network/strided_slice_3:0", shape=(), dtype=float32) Tensor("st_network/rnn/TensorArrayStack/TensorArrayGatherV3:0", shape=(?, ?, 384), dtype=float32)
+st: Tensor("st_network/Select:0", shape=(?, ?, 16500), dtype=float32)
+zzzzzzzzzzzzz
+Tensor("value_network/src_emb:0", shape=(?, ?, 384), dtype=float32)
+zzzzzzzzzzzzz
+Tensor("value_network/concat_7:0", shape=(?, ?, 384), dtype=float32)
+zzzzzzzzzzzzz
+Tensor("value_network/concat_14:0", shape=(?, ?, 384), dtype=float32)
+zzzzzzzzzzzzz
+Tensor("value_network/concat_21:0", shape=(?, ?, 384), dtype=float32)
+zzzzzzzzzzzzz
+Tensor("value_network/concat_28:0", shape=(?, ?, 384), dtype=float32)
+zzzzzzzzzzzzz
+Tensor("value_network/concat_35:0", shape=(?, ?, 384), dtype=float32)
+-------------------------------
+Tensor("value_network/Relu:0", shape=(?, 384), dtype=float32) Tensor("value_network/transpose_434:0", shape=(?, 384), dtype=float32) Tensor("value_network/transpose_869:0", shape=(?, 384), dtype=float32)
+2019-01-30 17:31:35.637842: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+2019-01-30 17:31:35.637874: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+2019-01-30 17:31:35.637879: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+2019-01-30 17:31:35.637883: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+2019-01-30 17:31:35.637887: W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+2019-01-30 17:31:38.585614: I tensorflow/core/common_runtime/gpu/gpu_device.cc:955] Found device 0 with properties: 
+name: GeForce GTX 1080 Ti
+major: 6 minor: 1 memoryClockRate (GHz) 1.645
+pciBusID 0000:4b:00.0
+Total memory: 10.91GiB
+Free memory: 10.75GiB
+2019-01-30 17:31:38.585650: I tensorflow/core/common_runtime/gpu/gpu_device.cc:976] DMA: 0 
+2019-01-30 17:31:38.585796: I tensorflow/core/common_runtime/gpu/gpu_device.cc:986] 0:   Y 
+2019-01-30 17:31:38.585822: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1045] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX 1080 Ti, pci bus id: 0000:4b:00.0)
+(16500, 384)
+(16000, 16000)
+loss: 321.6341 counter: 0
+loss: 264.5482 counter: 0
+loss: 228.03854 counter: 0
+loss: 188.82236 counter: 0
+loss: 162.99707 counter: 0
+loss: 140.02368 counter: 0
+loss: 134.4717 counter: 0
+loss: 116.798164 counter: 0
+loss: 109.424164 counter: 0
+loss: 109.66556 counter: 0
+loss: 106.972496 counter: 0
+loss: 97.58163 counter: 0
+loss: 91.788376 counter: 0
+loss: 82.98549 counter: 0
+loss: 74.658005 counter: 0
+loss: 75.63543 counter: 0
+loss: 75.13747 counter: 0
+loss: 70.68202 counter: 0
+loss: 68.75145 counter: 0
+loss: 65.840805 counter: 0
+loss: 68.82118 counter: 0
+loss: 65.92441 counter: 0
+loss: 62.64213 counter: 0
+loss: 60.06669 counter: 0
+loss: 56.854958 counter: 0
+loss: 54.663746 counter: 0
+loss: 49.872707 counter: 0
+loss: 49.943897 counter: 0
+loss: 51.764557 counter: 0
+loss: 46.54333 counter: 0
+loss: 44.12861 counter: 0
+loss: 43.88214 counter: 0
+loss: 40.48977 counter: 0
+loss: 40.715805 counter: 0
+loss: 35.896824 counter: 0
+loss: 34.926945 counter: 0
+loss: 41.23788 counter: 0
+loss: 41.286972 counter: 0
+loss: 24.85028 counter: 0
+loss: 23.113523 counter: 0
+loss: 30.25272 counter: 0
+loss: 28.912313 counter: 0
+loss: 28.401047 counter: 0
+loss: 33.779438 counter: 0
+loss: 29.645794 counter: 0
+loss: 44.79065 counter: 0
+loss: 37.57131 counter: 0
+loss: 29.015997 counter: 0
+loss: 29.867905 counter: 0
+loss: 34.628326 counter: 0
+loss: 38.728134 counter: 0
+loss: 38.612076 counter: 0
+loss: 28.572317 counter: 0
+loss: 28.799107 counter: 0
+loss: 34.474174 counter: 0
+loss: 26.073395 counter: 0
+loss: 23.981426 counter: 0
+loss: 33.57949 counter: 0
+loss: 29.090853 counter: 0
+loss: 26.315239 counter: 0
+loss: 29.958496 counter: 0
+loss: 31.080545 counter: 0
+loss: 26.396252 counter: 0
+loss: 28.866432 counter: 0
+loss: 23.147533 counter: 0
+loss: 32.270298 counter: 0
+loss: 26.83483 counter: 0
+loss: 20.019007 counter: 0
+loss: 23.758324 counter: 0
+loss: 26.633568 counter: 0
+loss: 22.948933 counter: 0
+loss: 28.825806 counter: 0
+loss: 19.464819 counter: 0
+loss: 30.064102 counter: 0
+loss: 27.464678 counter: 0
+loss: 23.810642 counter: 0
+loss: 22.434553 counter: 0
+loss: 22.007957 counter: 0
+loss: 25.069675 counter: 0
+loss: 23.011307 counter: 0
+loss: 23.464912 counter: 0
+loss: 29.630548 counter: 0
+loss: 29.875475 counter: 0
+loss: 24.374468 counter: 0
+loss: 28.348217 counter: 0
+loss: 29.224792 counter: 0
+loss: 23.932001 counter: 0
+loss: 23.799831 counter: 0
+loss: 26.843403 counter: 0
+loss: 28.535133 counter: 0
+loss: 23.554955 counter: 0
+loss: 21.580315 counter: 0
+loss: 22.508492 counter: 0
+loss: 23.432695 counter: 0
+loss: 24.393314 counter: 0
+loss: 25.35255 counter: 0
+loss: 24.807594 counter: 0
+loss: 23.147387 counter: 0
+loss: 21.324905 counter: 0
+loss: 24.752512 counter: 0
+loss: 18.447332 counter: 0
+loss: 20.634317 counter: 0
+loss: 20.785805 counter: 0
+loss: 26.39564 counter: 0
+loss: 22.51643 counter: 0
+loss: 27.021242 counter: 0
+loss: 18.570078 counter: 0
+loss: 24.250938 counter: 0
+loss: 21.668846 counter: 0
+loss: 22.71133 counter: 0
+loss: 19.456263 counter: 0
+loss: 23.432026 counter: 0
+loss: 21.618677 counter: 0
+loss: 22.47556 counter: 0
+loss: 18.549547 counter: 0
+loss: 17.59697 counter: 0
+loss: 23.17712 counter: 0
+loss: 17.077587 counter: 0
+loss: 19.433998 counter: 0
+loss: 20.774885 counter: 0
+loss: 23.252827 counter: 0
+loss: 20.582392 counter: 0
+loss: 13.163365 counter: 0
+loss: 16.599955 counter: 0
+loss: 6.544344 counter: 0
+loss: 14.782678 counter: 0
+loss: 10.819849 counter: 0
+loss: 12.937796 counter: 0
+loss: 21.831379 counter: 0
+loss: 4.7071934 counter: 0
+loss: 7.4057064 counter: 0
+loss: 3.4171407 counter: 0
+loss: 5.1935835 counter: 0
+loss: 10.798794 counter: 0
+loss: 5.965206 counter: 0
+loss: 18.949759 counter: 0
+loss: 20.643543 counter: 0
+loss: 20.922974 counter: 0
+loss: 20.44302 counter: 0
+loss: 19.84029 counter: 0
+loss: 16.81788 counter: 0
+loss: 14.81134 counter: 0
+loss: 19.681255 counter: 0
+loss: 17.722233 counter: 0
+loss: 23.813755 counter: 0
+loss: 19.825493 counter: 0
+loss: 15.739244 counter: 0
+loss: 18.979109 counter: 0
+loss: 14.37808 counter: 0
+loss: 18.75887 counter: 0
+loss: 18.355686 counter: 0
+loss: 20.130777 counter: 0
+loss: 21.840345 counter: 0
+loss: 20.43594 counter: 0
+loss: 18.61904 counter: 0
+loss: 18.79312 counter: 0
+loss: 16.940918 counter: 0
+loss: 15.364035 counter: 0
+loss: 17.029839 counter: 0
+loss: 21.241898 counter: 0
+loss: 18.575525 counter: 0
+loss: 19.938143 counter: 0
+loss: 18.376585 counter: 0
+loss: 18.958668 counter: 0
+loss: 16.784641 counter: 0
+loss: 17.27886 counter: 0
+loss: 20.226345 counter: 0
+loss: 16.615984 counter: 0
+loss: 15.492929 counter: 0
+loss: 19.159197 counter: 0
+loss: 15.469503 counter: 0
+loss: 13.771798 counter: 0
+loss: 17.986485 counter: 0
+loss: 17.48722 counter: 0
+loss: 15.368736 counter: 0
+loss: 19.475475 counter: 0
+loss: 13.372946 counter: 0
+loss: 15.454413 counter: 0
+loss: 13.460514 counter: 0
+loss: 15.01356 counter: 0
+loss: 12.226691 counter: 0
+loss: 12.778247 counter: 0
+loss: 18.241707 counter: 0
+loss: 14.988234 counter: 0
+loss: 18.887196 counter: 0
+loss: 14.321374 counter: 0
+loss: 16.038584 counter: 0
+loss: 17.045734 counter: 0
+loss: 14.550685 counter: 0
+loss: 13.683431 counter: 0
+loss: 15.11471 counter: 0
+loss: 12.663 counter: 0
+loss: 13.598368 counter: 0
+loss: 16.271236 counter: 0
+loss: 13.733283 counter: 0
+loss: 14.202301 counter: 0
+loss: 13.427661 counter: 0
+loss: 12.757871 counter: 0
+loss: 12.170986 counter: 0
+loss: 14.430343 counter: 0
+loss: 14.132965 counter: 0
+loss: 17.10374 counter: 0
+loss: 10.8765545 counter: 0
+loss: 14.97842 counter: 0
+loss: 12.202842 counter: 0
+loss: 15.152041 counter: 0
+loss: 20.892454 counter: 0
+loss: 11.005543 counter: 0
+loss: 20.199947 counter: 0
+loss: 14.901758 counter: 0
+loss: 12.364611 counter: 0
+loss: 11.626067 counter: 0
+loss: 13.803166 counter: 0
+loss: 14.835484 counter: 0
+loss: 10.918672 counter: 0
+loss: 19.428875 counter: 0
+loss: 9.620908 counter: 0
+loss: 11.13773 counter: 0
+loss: 10.122988 counter: 0
+loss: 10.719655 counter: 0
+loss: 11.033525 counter: 0
+loss: 12.522093 counter: 0
+loss: 13.169693 counter: 0
+loss: 13.684801 counter: 0
+loss: 13.162736 counter: 0
+loss: 12.980394 counter: 0
+loss: 10.313164 counter: 0
+loss: 9.563338 counter: 0
+loss: 9.948666 counter: 0
+loss: 10.921814 counter: 0
+loss: 14.385852 counter: 0
+loss: 11.559791 counter: 0
+loss: 12.284063 counter: 0
+loss: 10.72549 counter: 0
+loss: 11.696864 counter: 0
+loss: 12.868352 counter: 0
+loss: 10.977549 counter: 0
+loss: 12.566358 counter: 0
+loss: 16.144257 counter: 0
+loss: 10.586585 counter: 0
+loss: 11.485403 counter: 0
+loss: 9.6784 counter: 0
+loss: 9.957188 counter: 0
+loss: 8.000358 counter: 0
+loss: 10.697324 counter: 0
+loss: 11.195684 counter: 0
+loss: 11.205745 counter: 0
+loss: 10.775121 counter: 0
+loss: 13.089192 counter: 0
+loss: 11.071905 counter: 0
+loss: 10.912933 counter: 0
+loss: 11.716941 counter: 0
+loss: 10.330967 counter: 0
+loss: 12.381601 counter: 0
+loss: 9.43913 counter: 0
+loss: 13.754922 counter: 0
+loss: 8.848074 counter: 0
+loss: 8.822365 counter: 0
+loss: 10.537411 counter: 0
+loss: 11.9077835 counter: 0
+loss: 9.52876 counter: 0
+loss: 10.588377 counter: 0
+loss: 9.926584 counter: 0
+loss: 9.661571 counter: 0
+loss: 8.024956 counter: 0
+loss: 9.540888 counter: 0
+loss: 10.559779 counter: 0
+loss: 9.545843 counter: 0
+loss: 8.600534 counter: 0
+loss: 9.92884 counter: 0
+loss: 8.908326 counter: 0
+loss: 11.803493 counter: 0
+loss: 9.88697 counter: 0
+loss: 10.689947 counter: 0
+loss: 9.045017 counter: 0
+loss: 9.537416 counter: 0
+loss: 9.945156 counter: 0
+loss: 10.57031 counter: 0
+loss: 8.335294 counter: 0
+loss: 8.005047 counter: 0
+loss: 11.313475 counter: 0
+loss: 9.286236 counter: 0
+loss: 8.76571 counter: 0
+loss: 9.67561 counter: 0
+loss: 8.040026 counter: 0
+loss: 8.423571 counter: 0
+loss: 9.443832 counter: 0
+loss: 8.653613 counter: 0
+loss: 7.8683167 counter: 0
+loss: 10.898853 counter: 0
+loss: 8.050097 counter: 0
+loss: 7.97754 counter: 0
+loss: 9.801907 counter: 0
+loss: 9.685745 counter: 0
+loss: 9.737625 counter: 0
+loss: 9.615736 counter: 0
+loss: 8.930997 counter: 0
+loss: 6.698992 counter: 0
+loss: 8.1137905 counter: 0
+loss: 8.01949 counter: 0
+loss: 8.614162 counter: 0
+loss: 10.348435 counter: 0
+loss: 7.759495 counter: 0
+loss: 10.039561 counter: 0
+loss: 5.990951 counter: 0
+loss: 8.920342 counter: 0
+loss: 8.063443 counter: 0
+loss: 8.382643 counter: 0
+loss: 7.750934 counter: 0
+loss: 9.56938 counter: 0
+loss: 9.729254 counter: 0
+loss: 7.912322 counter: 0
+loss: 7.1623983 counter: 0
+loss: 7.185514 counter: 0
+loss: 7.0892 counter: 0
+loss: 11.083349 counter: 0
+loss: 5.689201 counter: 0
+loss: 6.3415303 counter: 0
+loss: 7.4445662 counter: 0
+loss: 8.333109 counter: 0
+loss: 7.8880396 counter: 0
+loss: 9.388208 counter: 0
+loss: 9.068236 counter: 0
+loss: 8.476936 counter: 0
+loss: 10.324785 counter: 0
+loss: 7.5740247 counter: 0
+loss: 6.687568 counter: 0
+loss: 7.749255 counter: 0
+loss: 7.82391 counter: 0
+loss: 6.7851725 counter: 0
+loss: 7.370327 counter: 0
+loss: 5.5100813 counter: 0
+loss: 8.24086 counter: 0
+loss: 7.90212 counter: 0
+loss: 5.837582 counter: 0
+loss: 7.931097 counter: 0
+loss: 7.0304275 counter: 0
+loss: 6.209405 counter: 0
+loss: 8.483629 counter: 0
+loss: 8.003283 counter: 0
+loss: 6.442809 counter: 0
+loss: 10.380779 counter: 0
+loss: 8.45636 counter: 0
+loss: 7.8358526 counter: 0
+loss: 5.5444484 counter: 0
+loss: 5.0998034 counter: 0
+loss: 6.1100445 counter: 0
+loss: 6.583083 counter: 0
+loss: 8.184256 counter: 0
+loss: 6.417762 counter: 0
+loss: 7.527075 counter: 0
+loss: 6.708977 counter: 0
+loss: 6.4888487 counter: 0
+loss: 6.400122 counter: 0
+loss: 5.833142 counter: 0
+loss: 6.319887 counter: 0
+loss: 4.712128 counter: 0
+loss: 4.54475 counter: 0
